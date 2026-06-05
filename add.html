@@ -1,19 +1,30 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Tambah Rekomendasi Lagu</title>
+    <title>Tambah & Kelola Rekomendasi Lagu</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 30px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input, select, button { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; }
         button:hover { background-color: #218838; }
         .nav-link { display: block; margin-top: 15px; text-align: center; color: #007bff; text-decoration: none; }
-        /* Style tambahan agar daftar lagu rapi dan tidak terlalu panjang ke bawah */
-        .all-songs { margin-top: 30px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; max-height: 200px; overflow-y: auto; }
-        .status-loading { color: #7f8c8d; font-style: italic; }
+        
+        /* Style Daftar Lagu dan Aksi */
+        .all-songs { margin-top: 30px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; max-height: 350px; overflow-y: auto; }
+        #song-list { list-style: none; padding: 0; margin: 0; }
+        #song-list li { padding: 10px; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px; }
+        .song-info { font-size: 14px; }
+        .action-btns { display: flex; gap: 5px; }
+        
+        .edit-btn { background-color: #ffc107; color: black; font-size: 12px; padding: 5px; width: auto; flex: 1; }
+        .edit-btn:hover { background-color: #e0a800; }
+        .delete-btn { background-color: #dc3545; color: white; font-size: 12px; padding: 5px; width: auto; flex: 1; }
+        .delete-btn:hover { background-color: #c82333; }
+        .status-loading { color: #7f8c8d; font-style: italic; text-align: center; list-style: none; }
     </style>
 </head>
 <body>
@@ -45,7 +56,7 @@
     <button id="submit-btn" onclick="saveData()">Tambahkan ke Database</button>
 
     <div class="all-songs">
-        <h3>Daftar Semua Lagu di Database:</h3>
+        <h3>Kelola Database Lagu:</h3>
         <ul id="song-list">
             <li class="status-loading" id="loading-text">Sedang mengambil data dari JsonBin...</li>
         </ul>
@@ -54,20 +65,16 @@
     <a class="nav-link" href="index.html">Ke Halaman Gacha (Index)</a>
 
     <script>
-        // Konfigurasi JsonBin milikmu (Menggunakan BIN_ID barumu)
         const BIN_ID = "6a23440ada38895dfe8e88a7";
         const API_KEY = "$2a$10$r7I.AEjQuUfcR1rKNWFanuDpJcYhqz.EmTPRL3aWxY3H.hiGx6ZmC"; 
         
-        // Variabel global untuk menampung data lagu yang di-download
         let songDatabase = [];
 
-        // FUNGSI 1: Ambil data dari server saat halaman pertama kali dibuka
+        // Ambil data dari server saat halaman pertama kali dibuka
         function loadDatabase() {
             fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
                 method: 'GET',
-                headers: {
-                    'X-Master-Key': API_KEY
-                }
+                headers: { 'X-Master-Key': API_KEY }
             })
             .then(res => {
                 if (!res.ok) throw new Error("Gagal mengambil data");
@@ -75,7 +82,7 @@
             })
             .then(data => {
                 songDatabase = data.record;
-                tampilkanDaftarLagu(); // Tampilkan ke HTML
+                tampilkanDaftarLagu();
             })
             .catch(err => {
                 console.error(err);
@@ -83,19 +90,28 @@
             });
         }
 
-        // FUNGSI 2: Menampilkan array songDatabase ke dalam tag <ul>
+        // Menampilkan daftar lagu dengan tombol Edit & Delete berdasarkan urutan index array
         function tampilkanDaftarLagu() {
             const songListEl = document.getElementById('song-list');
-            songListEl.innerHTML = ""; // Hapus tulisan loading
+            songListEl.innerHTML = ""; 
 
             if (!songDatabase || songDatabase.length === 0) {
-                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lagu pertama!</li>";
+                songListEl.innerHTML = "<li class='status-loading'>Database kosong. Silakan tambah lagu pertama!</li>";
                 return;
             }
 
-            songDatabase.forEach(song => {
+            songDatabase.forEach((song, index) => {
                 let li = document.createElement('li');
-                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
+                li.innerHTML = `
+                    <div class="song-info">
+                        <strong>${song.title}</strong> <br>
+                        <small>Kategori: ${song.category}</small>
+                    </div>
+                    <div class="action-btns">
+                        <button class="edit-btn" onclick="editSong(${index})">Edit</button>
+                        <button class="delete-btn" onclick="deleteSong(${index})">Hapus</button>
+                    </div>
+                `;
                 songListEl.appendChild(li);
             });
         }
@@ -106,7 +122,32 @@
             return (match && match[2].length === 11) ? match[2] : null;
         }
 
-        // FUNGSI 3: Menambahkan lagu baru ke JsonBin
+        // Mengupdate keseluruhan data ke JsonBin
+        function updateJsonBin(updatedData, successMessage) {
+            return fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY
+                },
+                body: JSON.stringify(updatedData)
+            })
+            .then(res => {
+                if(!res.ok) throw new Error("Gagal memperbarui data di JsonBin");
+                return res.json();
+            })
+            .then(finalData => {
+                alert(successMessage);
+                songDatabase = finalData.record;
+                tampilkanDaftarLagu(); 
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Terjadi kesalahan saat memperbarui database cloud.');
+            });
+        }
+
+        // Tambah Lagu Baru
         function saveData() {
             const title = document.getElementById('title').value;
             const category = document.getElementById('category').value;
@@ -114,69 +155,29 @@
             const videoId = extractVideoId(url);
             const btn = document.getElementById('submit-btn');
 
-            if (!title || !url) {
-                alert('Semua data (kecuali kategori) wajib diisi!');
-                return;
-            }
-
-            if (!videoId) {
-                alert('URL YouTube tidak valid!');
-                return;
-            }
+            if (!title || !url) return alert('Semua data wajib diisi!');
+            if (!videoId) return alert('URL YouTube tidak valid!');
 
             const newSong = { title, category, videoId };
 
             btn.disabled = true;
             btn.textContent = "Menyimpan ke Cloud...";
 
-            // Ambil data terbaru dulu agar datanya sinkron
             fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
                 method: 'GET',
-                headers: {
-                    'X-Master-Key': API_KEY
-                }
+                headers: { 'X-Master-Key': API_KEY }
             })
-            .then(res => {
-                if(!res.ok) throw new Error("Gagal mengambil data dari JsonBin");
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 let currentDatabase = data.record; 
-
-                if (!Array.isArray(currentDatabase)) {
-                    currentDatabase = [];
-                }
-
-                currentDatabase.push(newSong);
-
-                // Kirim data yang sudah ditambah ke server
-                return fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': API_KEY
-                    },
-                    body: JSON.stringify(currentDatabase)
-                });
-            })
-            .then(res => {
-                if(!res.ok) throw new Error("Gagal memperbarui data di JsonBin");
-                return res.json();
-            })
-            .then(finalData => {
-                alert('Lagu berhasil ditambahkan secara global ke JsonBin!');
+                if (!Array.isArray(currentDatabase)) currentDatabase = [];
                 
-                // Update variabel lokal kita dengan data yang baru disave
-                songDatabase = finalData.record;
-                tampilkanDaftarLagu(); // Refresh list lagu di bawah tanpa perlu reload browser
-
-                // Reset form input
+                currentDatabase.push(newSong);
+                return updateJsonBin(currentDatabase, 'Lagu berhasil ditambahkan secara global!');
+            })
+            .then(() => {
                 document.getElementById('title').value = '';
                 document.getElementById('url').value = '';
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Terjadi kesalahan saat menyimpan data.');
             })
             .finally(() => {
                 btn.disabled = false;
@@ -184,8 +185,40 @@
             });
         }
 
-        // Jalankan fungsi loadDatabase secara otomatis begitu halaman add.html dibuka
+        // FITUR BARU: Edit data lagu berdasarkan indeksnya
+        function editSong(index) {
+            const song = songDatabase[index];
+            
+            // Menggunakan prompt browser bawaan agar simpel dan langsung jalan
+            const newTitle = prompt("Masukkan Judul Lagu / Penyanyi baru:", song.title);
+            if (newTitle === null || newTitle.trim() === "") return; // Batal jika kosong/cancel
+
+            const newCategory = prompt("Masukkan Kategori baru\n(Anime, J-Pop, BGM, Vocaloid, V-tuber(original song), atau V-Tuber(cover)): ", song.category);
+            if (newCategory === null || newCategory.trim() === "") return;
+
+            // Update array data lokal
+            songDatabase[index].title = newTitle.trim();
+            songDatabase[index].category = newCategory.trim();
+
+            // Kirim perubahan total ke server cloud
+            updateJsonBin(songDatabase, 'Lagu berhasil diubah!');
+        }
+
+        // FITUR BARU: Hapus data lagu berdasarkan indeksnya
+        function deleteSong(index) {
+            const song = songDatabase[index];
+            
+            // Konfirmasi sebelum menghapus data
+            if (confirm(`Apakah kamu yakin ingin menghapus lagu "${song.title}" dari database?`)) {
+                // Hapus 1 item dari array berdasarkan posisinya
+                songDatabase.splice(index, 1);
+                
+                // Kirim perubahan terbaru ke JsonBin
+                updateJsonBin(songDatabase, 'Lagu berhasil dihapus!');
+            }
+        }
+
         loadDatabase();
     </script>
 </body>
-</html>
+    </html>
