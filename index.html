@@ -158,34 +158,4 @@
         loadDatabase();
     </script>
 </body>
-</html>            document.getElementById('points-display').textContent = currentPoints;
-
-            // Pilih lagu secara acak dari database JsonBin
-            const randomIndex = Math.floor(Math.random() * songDatabase.length);
-            const chosenSong = songDatabase[randomIndex];
-
-            // Tampilkan informasi hasil gacha
-            document.getElementById('result-title').textContent = chosenSong.title;
-            document.getElementById('result-category').textContent = chosenSong.category;
-            
-            // Pasang preview video YouTube menggunakan iframe
-            const embedBox = document.getElementById('youtube-embed');
-            embedBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${chosenSong.videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-            
-            // Munculkan kotak box preview
-            document.getElementById('preview-box').style.display = 'block';
-
-            // Kunci tombol gacha jika seandainya poin pas habis setelah gacha ini
-            if (currentPoints < 10) {
-                const gachaBtn = document.getElementById('gacha-button');
-                gachaBtn.disabled = true;
-                gachaBtn.textContent = "Poin Habis!";
-            }
-        }
-
-        // Jalankan fungsi inisialisasi saat web dimuat pertama kali
-        initPoints();
-        loadDatabase();
-    </script>
-</body>
-</html>
+</html>            
