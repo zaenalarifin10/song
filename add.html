@@ -11,6 +11,9 @@
         button { background-color: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #218838; }
         .nav-link { display: block; margin-top: 15px; text-align: center; color: #007bff; text-decoration: none; }
+        /* Style tambahan agar daftar lagu rapi dan tidak terlalu panjang ke bawah */
+        .all-songs { margin-top: 30px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; max-height: 200px; overflow-y: auto; }
+        .status-loading { color: #7f8c8d; font-style: italic; }
     </style>
 </head>
 <body>
@@ -28,8 +31,8 @@
             <option value="Anime">Anime</option>
             <option value="J-Pop">J-Pop</option>
             <option value="BGM">BGM</option>
-<option value="Vocaloid">Vocaloid</option>
-            <option value="V-tuber(original song)">V-tuber(original song</option>
+            <option value="Vocaloid">Vocaloid</option>
+            <option value="V-tuber(original song)">V-tuber(original song)</option>
             <option value="V-Tuber(cover)">V-Tuber(cover)</option>
         </select>
     </div>
@@ -40,7 +43,8 @@
     </div>
 
     <button id="submit-btn" onclick="saveData()">Tambahkan ke Database</button>
-<div class="all-songs">
+
+    <div class="all-songs">
         <h3>Daftar Semua Lagu di Database:</h3>
         <ul id="song-list">
             <li class="status-loading" id="loading-text">Sedang mengambil data dari JsonBin...</li>
@@ -50,9 +54,51 @@
     <a class="nav-link" href="index.html">Ke Halaman Gacha (Index)</a>
 
     <script>
-        // Konfigurasi JsonBin milikmu (Sudah ditaruh di atas agar rapi)
+        // Konfigurasi JsonBin milikmu (Menggunakan BIN_ID barumu)
         const BIN_ID = "6a23440ada38895dfe8e88a7";
         const API_KEY = "$2a$10$r7I.AEjQuUfcR1rKNWFanuDpJcYhqz.EmTPRL3aWxY3H.hiGx6ZmC"; 
+        
+        // Variabel global untuk menampung data lagu yang di-download
+        let songDatabase = [];
+
+        // FUNGSI 1: Ambil data dari server saat halaman pertama kali dibuka
+        function loadDatabase() {
+            fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                method: 'GET',
+                headers: {
+                    'X-Master-Key': API_KEY
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Gagal mengambil data");
+                return res.json();
+            })
+            .then(data => {
+                songDatabase = data.record;
+                tampilkanDaftarLagu(); // Tampilkan ke HTML
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('loading-text').textContent = "Gagal memuat lagu dari server.";
+            });
+        }
+
+        // FUNGSI 2: Menampilkan array songDatabase ke dalam tag <ul>
+        function tampilkanDaftarLagu() {
+            const songListEl = document.getElementById('song-list');
+            songListEl.innerHTML = ""; // Hapus tulisan loading
+
+            if (!songDatabase || songDatabase.length === 0) {
+                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lagu pertama!</li>";
+                return;
+            }
+
+            songDatabase.forEach(song => {
+                let li = document.createElement('li');
+                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
+                songListEl.appendChild(li);
+            });
+        }
 
         function extractVideoId(url) {
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -60,6 +106,7 @@
             return (match && match[2].length === 11) ? match[2] : null;
         }
 
+        // FUNGSI 3: Menambahkan lagu baru ke JsonBin
         function saveData() {
             const title = document.getElementById('title').value;
             const category = document.getElementById('category').value;
@@ -79,11 +126,10 @@
 
             const newSong = { title, category, videoId };
 
-            // Ubah tampilan tombol saat proses loading kirim data
             btn.disabled = true;
             btn.textContent = "Menyimpan ke Cloud...";
 
-            // 1. Ambil data lagu yang sudah ada di JsonBin terlebih dahulu
+            // Ambil data terbaru dulu agar datanya sinkron
             fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
                 method: 'GET',
                 headers: {
@@ -97,15 +143,13 @@
             .then(data => {
                 let currentDatabase = data.record; 
 
-                // Pastikan format data dari server berupa Array
                 if (!Array.isArray(currentDatabase)) {
                     currentDatabase = [];
                 }
 
-                // 2. Masukkan lagu baru ke dalam data lama
                 currentDatabase.push(newSong);
 
-                // 3. Simpan kembali seluruh data yang baru ke JsonBin
+                // Kirim data yang sudah ditambah ke server
                 return fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                     method: 'PUT',
                     headers: {
@@ -122,6 +166,10 @@
             .then(finalData => {
                 alert('Lagu berhasil ditambahkan secara global ke JsonBin!');
                 
+                // Update variabel lokal kita dengan data yang baru disave
+                songDatabase = finalData.record;
+                tampilkanDaftarLagu(); // Refresh list lagu di bawah tanpa perlu reload browser
+
                 // Reset form input
                 document.getElementById('title').value = '';
                 document.getElementById('url').value = '';
@@ -131,26 +179,13 @@
                 alert('Terjadi kesalahan saat menyimpan data.');
             })
             .finally(() => {
-                // Kembalikan status tombol seperti semula
                 btn.disabled = false;
                 btn.textContent = "Tambahkan ke Database";
             });
         }
-        function tampilkanDaftarLagu() {
-            const songListEl = document.getElementById('song-list');
-            songListEl.innerHTML = ""; // Bersihkan teks loading
 
-            if (!songDatabase || songDatabase.length === 0) {
-                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lewat add.html!</li>";
-                return;
-            }
-
-            songDatabase.forEach(song => {
-                let li = document.createElement('li');
-                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
-                songListEl.appendChild(li);
-            });
-        }
+        // Jalankan fungsi loadDatabase secara otomatis begitu halaman add.html dibuka
+        loadDatabase();
     </script>
 </body>
-        </html>
+</html>
