@@ -9,9 +9,10 @@
         .gacha-btn { padding: 15px 30px; font-size: 18px; background-color: #9b59b6; color: white; border: none; border-radius: 5px; cursor: pointer; }
         .gacha-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         .preview-container { margin-top: 30px; padding: 20px; border: 2px dashed #3498db; display: none; border-radius: 8px; }
-        .all-songs { margin-top: 40px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; }
+        .all-songs { margin-top: 40px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 5px; max-height: 250px; overflow-y: auto; }
         iframe { width: 100%; height: 315px; margin-top: 15px; border: none; }
         .nav-link { display: block; margin-top: 20px; color: #007bff; text-decoration: none; }
+        .status-loading { color: #7f8c8d; font-style: italic; }
     </style>
 </head>
 <body>
@@ -20,7 +21,7 @@
     
     <div class="points-box">Poin Kamu: <span id="points-display">100</span> LP</div>
     
-    <button class="gacha-btn" id="gacha-button" onclick="doGacha()">Gacha Lagu (10 Poin)</button>
+    <button class="gacha-btn" id="gacha-button" onclick="doGacha()" disabled>Memuat Database...</button>
 
     <div class="preview-container" id="preview-box">
         <h3>🎉 Hasil Gacha: <span id="result-title">Judul Lagu</span> [<span id="result-category">Genre</span>]</h3>
@@ -29,40 +30,85 @@
 
     <div class="all-songs">
         <h3>Daftar Semua Lagu di Database:</h3>
-        <ul id="song-list"></ul>
+        <ul id="song-list">
+            <li class="status-loading" id="loading-text">Sedang mengambil data dari JsonBin...</li>
+        </ul>
     </div>
 
     <a class="nav-link" href="add.html">Tambah Lagu Baru di Sini</a>
 
     <script {timestamp="2026"}>
-        // Inisialisasi Poin (Beri 100 jika belum pernah masuk)
-        let currentPoints = localStorage.getItem('userPoints');
-        if (currentPoints === null) {
-            currentPoints = 100;
-            localStorage.setItem('userPoints', currentPoints);
-        } else {
-            currentPoints = parseInt(currentPoints);
+        // Konfigurasi JsonBin milikmu
+        const BIN_ID = "6a2340f5f5f4af5e29c00269";
+        const API_KEY = "$2a$10$r7I.AEjQuUfcR1rKNWFanuDpJcYhqz.EmTPRL3aWxY3H.hiGx6ZmC"; 
+
+        let songDatabase = [];
+        let currentPoints = 0;
+
+        // 1. Logika Pengaturan Poin Pengunjung (Setiap browser dapat 100 poin pertama kali)
+        function initPoints() {
+            let points = localStorage.getItem('userPoints');
+            if (points === null) {
+                points = 100;
+                localStorage.setItem('userPoints', points);
+            } else {
+                points = parseInt(points);
+            }
+            currentPoints = points;
+            document.getElementById('points-display').textContent = currentPoints;
         }
-        
-        // Update tampilan poin di awal
-        document.getElementById('points-display').textContent = currentPoints;
 
-        // Ambil data database lagu dari LocalStorage
-        const songDatabase = JSON.parse(localStorage.getItem('songDatabase')) || [];
+        // 2. Ambil data database lagu dari JsonBin saat halaman dibuka
+        function loadDatabase() {
+            fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                method: 'GET',
+                headers: {
+                    'X-Master-Key': API_KEY
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Gagal memuat data dari server");
+                return res.json();
+            })
+            .then(data => {
+                songDatabase = data.record;
+                
+                // Tampilkan semua lagu ke dalam list di bawah
+                tampilkanDaftarLagu();
 
-        // Tampilkan semua lagu ke dalam list index
-        const songListEl = document.getElementById('song-list');
-        if (songDatabase.length === 0) {
-            songListEl.innerHTML = "<li>Belum ada lagu. Silakan tambah data lewat halaman add.html dulu!</li>";
-        } else {
+                // Aktifkan kembali tombol gacha jika poin mencukupi
+                const gachaBtn = document.getElementById('gacha-button');
+                if (currentPoints >= 10) {
+                    gachaBtn.disabled = false;
+                    gachaBtn.textContent = "Gacha Lagu (10 Poin)";
+                } else {
+                    gachaBtn.textContent = "Poin Habis!";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('loading-text').textContent = "Gagal memuat lagu dari database cloud.";
+            });
+        }
+
+        // 3. Fungsi memunculkan list semua lagu ke layar
+        function tampilkanDaftarLagu() {
+            const songListEl = document.getElementById('song-list');
+            songListEl.innerHTML = ""; // Bersihkan teks loading
+
+            if (!songDatabase || songDatabase.length === 0) {
+                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lewat add.html!</li>";
+                return;
+            }
+
             songDatabase.forEach(song => {
                 let li = document.createElement('li');
-                li.textContent = `${song.title} (${song.category})`;
+                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
                 songListEl.appendChild(li);
             });
         }
 
-        // Fungsi Gacha
+        // 4. Fungsi eksekusi Gacha
         function doGacha() {
             if (songDatabase.length === 0) {
                 alert('Database kosong! Tambahkan lagu terlebih dahulu di halaman add.html.');
@@ -70,38 +116,41 @@
             }
 
             if (currentPoints < 10) {
-                alert('Poin kamu habis! Tidak bisa melakukan gacha.');
+                alert('Poin kamu tidak cukup untuk gacha!');
                 return;
             }
 
-            // Kurangi poin
+            // Kurangi poin user
             currentPoints -= 10;
             localStorage.setItem('userPoints', currentPoints);
             document.getElementById('points-display').textContent = currentPoints;
 
-            // Pilih lagu secara acak (Random)
+            // Pilih lagu secara acak dari database JsonBin
             const randomIndex = Math.floor(Math.random() * songDatabase.length);
             const chosenSong = songDatabase[randomIndex];
 
-            // Tampilkan hasil dan embed youtube
+            // Tampilkan informasi hasil gacha
             document.getElementById('result-title').textContent = chosenSong.title;
             document.getElementById('result-category').textContent = chosenSong.category;
             
+            // Pasang preview video YouTube menggunakan iframe
             const embedBox = document.getElementById('youtube-embed');
-            embedBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${chosenSong.videoId}" allowfullscreen></iframe>`;
+            embedBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${chosenSong.videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             
+            // Munculkan kotak box preview
             document.getElementById('preview-box').style.display = 'block';
 
-            // Cek jika poin habis setelah gacha ini
+            // Kunci tombol gacha jika seandainya poin pas habis setelah gacha ini
             if (currentPoints < 10) {
-                document.getElementById('gacha-button').disabled = true;
+                const gachaBtn = document.getElementById('gacha-button');
+                gachaBtn.disabled = true;
+                gachaBtn.textContent = "Poin Habis!";
             }
         }
 
-        // Kunci tombol gacha dari awal jika poin memang sudah di bawah 10
-        if (currentPoints < 10) {
-            document.getElementById('gacha-button').disabled = true;
-        }
+        // Jalankan fungsi inisialisasi saat web dimuat pertama kali
+        initPoints();
+        loadDatabase();
     </script>
 </body>
 </html>
