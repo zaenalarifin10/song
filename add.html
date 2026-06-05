@@ -37,13 +37,16 @@
         <input type="url" id="url" placeholder="Contoh: https://www.youtube.com/watch?v=a2GujJZfall">
     </div>
 
-    <button onclick="saveData()">Tambahkan ke Database</button>
+    <button id="submit-btn" onclick="saveData()">Tambahkan ke Database</button>
 
     <a class="nav-link" href="index.html">Ke Halaman Gacha (Index)</a>
 
     <script>
+        // Konfigurasi JsonBin milikmu (Sudah ditaruh di atas agar rapi)
+        const BIN_ID = "6a2340f5f5f4af5e29c00269";
+        const API_KEY = "$2a$10$r7I.AEjQuUfcR1rKNWFanuDpJcYhqz.EmTPRL3aWxY3H.hiGx6ZmC"; 
+
         function extractVideoId(url) {
-            // Fungsi untuk mengambil ID Video YouTube agar bisa di-embed
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const match = url.match(regExp);
             return (match && match[2].length === 11) ? match[2] : null;
@@ -54,6 +57,7 @@
             const category = document.getElementById('category').value;
             const url = document.getElementById('url').value;
             const videoId = extractVideoId(url);
+            const btn = document.getElementById('submit-btn');
 
             if (!title || !url) {
                 alert('Semua data (kecuali kategori) wajib diisi!');
@@ -65,21 +69,65 @@
                 return;
             }
 
-            // Ambil data lama dari localStorage, jika belum ada buat array kosong
-            let songDatabase = JSON.parse(localStorage.getItem('songDatabase')) || [];
+            const newSong = { title, category, videoId };
 
-            // Tambahkan data baru
-            songDatabase.push({ title, category, videoId });
+            // Ubah tampilan tombol saat proses loading kirim data
+            btn.disabled = true;
+            btn.textContent = "Menyimpan ke Cloud...";
 
-            // Simpan kembali ke localStorage
-            localStorage.setItem('songDatabase', JSON.stringify(songDatabase));
+            // 1. Ambil data lagu yang sudah ada di JsonBin terlebih dahulu
+            fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                method: 'GET',
+                headers: {
+                    'X-Master-Key': API_KEY
+                }
+            })
+            .then(res => {
+                if(!res.ok) throw new Error("Gagal mengambil data dari JsonBin");
+                return res.json();
+            })
+            .then(data => {
+                let currentDatabase = data.record; 
 
-            alert('Lagu berhasil ditambahkan!');
-            
-            // Reset form
-            document.getElementById('title').value = '';
-            document.getElementById('url').value = '';
+                // Pastikan format data dari server berupa Array
+                if (!Array.isArray(currentDatabase)) {
+                    currentDatabase = [];
+                }
+
+                // 2. Masukkan lagu baru ke dalam data lama
+                currentDatabase.push(newSong);
+
+                // 3. Simpan kembali seluruh data yang baru ke JsonBin
+                return fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
+                    },
+                    body: JSON.stringify(currentDatabase)
+                });
+            })
+            .then(res => {
+                if(!res.ok) throw new Error("Gagal memperbarui data di JsonBin");
+                return res.json();
+            })
+            .then(finalData => {
+                alert('Lagu berhasil ditambahkan secara global ke JsonBin!');
+                
+                // Reset form input
+                document.getElementById('title').value = '';
+                document.getElementById('url').value = '';
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Terjadi kesalahan saat menyimpan data.');
+            })
+            .finally(() => {
+                // Kembalikan status tombol seperti semula
+                btn.disabled = false;
+                btn.textContent = "Tambahkan ke Database";
+            });
         }
     </script>
 </body>
-  </html>
+        </html>
