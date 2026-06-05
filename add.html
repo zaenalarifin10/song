@@ -130,6 +130,21 @@
                 btn.textContent = "Tambahkan ke Database";
             });
         }
+        function tampilkanDaftarLagu() {
+            const songListEl = document.getElementById('song-list');
+            songListEl.innerHTML = ""; // Bersihkan teks loading
+
+            if (!songDatabase || songDatabase.length === 0) {
+                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lewat add.html!</li>";
+                return;
+            }
+
+            songDatabase.forEach(song => {
+                let li = document.createElement('li');
+                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
+                songListEl.appendChild(li);
+            });
+        }
     </script>
 </body>
         </html>
