@@ -39,7 +39,7 @@
 
     <script {timestamp="2026"}>
         // Konfigurasi JsonBin milikmu
-        const BIN_ID = "6a2340f5f5f4af5e29c00269";
+        const BIN_ID = "6a23440ada38895dfe8e88a7";
         const API_KEY = "$2a$10$r7I.AEjQuUfcR1rKNWFanuDpJcYhqz.EmTPRL3aWxY3H.hiGx6ZmC"; 
 
         let songDatabase = [];
@@ -92,21 +92,7 @@
         }
 
         // 3. Fungsi memunculkan list semua lagu ke layar
-        function tampilkanDaftarLagu() {
-            const songListEl = document.getElementById('song-list');
-            songListEl.innerHTML = ""; // Bersihkan teks loading
-
-            if (!songDatabase || songDatabase.length === 0) {
-                songListEl.innerHTML = "<li>Database kosong. Silakan tambah lewat add.html!</li>";
-                return;
-            }
-
-            songDatabase.forEach(song => {
-                let li = document.createElement('li');
-                li.innerHTML = `<strong>${song.title}</strong> — <small>${song.category}</small>`;
-                songListEl.appendChild(li);
-            });
-        }
+        
 
         // 4. Fungsi eksekusi Gacha
         function doGacha() {
